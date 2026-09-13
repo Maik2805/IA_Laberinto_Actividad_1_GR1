@@ -105,11 +105,13 @@ def procesar_celda(nueva_pos):
     valor = laberinto[nueva_pos[0]][nueva_pos[1]]
 
     if valor == 2:
-        coins -= 5
-        print("¡Penalización! Pierdes 5 monedas.")
+        coins -= 3
+        print("¡Penalización! Pierdes 3 monedas.")
+    elif valor == 0:
+        coins -= 1
     elif valor == 3:
-        coins += 10
-        print("¡Premio! Ganas 10 monedas.")
+        coins -= 0.25
+        print("¡Premio! Pierdes 0.25 monedas.")
     elif valor == 9:
         print("¡Has llegado a la meta!")
 
