@@ -1,177 +1,175 @@
-import os
-import msvcrt
+import networkx as nx
+import matplotlib.pyplot as plt
 
-# ── Tipos de celda ──────────────────────────────────────────────
-LIBRE        = "LIBRE"
-JUGADOR      = "JUGADOR"
-META         = "META"
-PARED        = "PARED"
-PENAL = "PENAL"
-PREMI       = "PREMI"
-
-
-# Definicion uso de coins:
-COSTO_BASE = 4
-COINS_TOTALES = COSTO_BASE * 22
-
-COSTOS = {
-        LIBRE: COSTO_BASE,
-        PREMI: COSTO_BASE / 4,
-        PENAL: COSTO_BASE * 3 ,
-        META: COSTO_BASE,
-    }
-
-DIRS = {
-        b"w": (-1,  0),
-        b"s": ( 1,  0),
-        b"a": ( 0, -1),
-        b"d": ( 0,  1),
-    }
-
-SIMBOLOS = {
-    LIBRE:        " ",
-    JUGADOR:      "O",
-    META:         "M",
-    PARED:        "X",
-    PENAL:        "☢︎",
-    PREMI:        "✔︎",
-}
-
-# Construcción del mapa como grilla para facilitar la configuración:
-# Cada fila es una lista de tipos de celda.
-# Inicio del jugador: (0, 0)   Meta: (8, 8)
-MAPA = [
-    [LIBRE, LIBRE, PARED, LIBRE, LIBRE, LIBRE, PARED, LIBRE, LIBRE],  # fila 0
-    [PARED, LIBRE, PARED, LIBRE, PARED, LIBRE, LIBRE, LIBRE, PARED],  # fila 1
-    [LIBRE, LIBRE, LIBRE, LIBRE, PARED, LIBRE, PARED, LIBRE, LIBRE],  # fila 2
-    [LIBRE, PARED, PARED, LIBRE, LIBRE, LIBRE, LIBRE, PARED, LIBRE],  # fila 3
-    [LIBRE, LIBRE, LIBRE, PARED, PENAL, PARED, LIBRE, LIBRE, LIBRE],  # fila 4
-    [PARED, LIBRE, PARED, LIBRE, LIBRE, LIBRE, PARED, LIBRE, PARED],  # fila 5
-    [LIBRE, LIBRE, LIBRE, PARED, PREMI, LIBRE, LIBRE, LIBRE, LIBRE], # fila 6
-    [LIBRE, PARED, LIBRE, LIBRE, PARED, LIBRE, PARED, PARED, LIBRE],  # fila 7
-    [LIBRE, LIBRE, PARED, LIBRE, LIBRE, LIBRE, PARED, LIBRE, META ],  # fila 8
+laberinto = [
+    [0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 0, 1, 0, 1, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+    [1, 1, 0, 0, 0, 1, 1, 1, 0],
+    [0, 0, 0, 1, 0, 0, 0, 1, 0],
+    [0, 1, 0, 1, 0, 1, 0, 1, 0],
+    [0, 1, 0, 0, 0, 1, 0, 0, 3],
+    [0, 1, 1, 1, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 1, 0, 2, 9]
 ]
 
-# Grafo: lista de vecinos para cada celda (nodo)
-# Solo se conectan celdas que NO son PARED, en las 4 direcciones.
-def construir_grafo():
-    grafo = {}
-    filas    = len(MAPA)
-    columnas = len(MAPA[0])
+filas = len(laberinto)
+columnas = len(laberinto[0])
 
-    for f in range(filas):
-        for c in range(columnas):
-            if MAPA[f][c] == PARED:
-                continue
-            vecinos = []
-            for df, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
-                nf, nc = f+df, c+dc
-                if 0 <= nf < filas and 0 <= nc < columnas:
-                    if MAPA[nf][nc] != PARED:
-                        vecinos.append((nf, nc))
-            grafo[(f, c)] = vecinos
+# --- Construcción automática del grafo a partir de la matriz ---
+G = nx.Graph()
 
-    return grafo
+# 1. Crear un nodo por cada celda que no sea muro (1)
+for f in range(filas):
+    for c in range(columnas):
+        if laberinto[f][c] != 1:
+            G.add_node((f, c), valor=laberinto[f][c])
 
-# Imprime el grafo construido a partir del mapa, como evidencia de su construcción.
-# Muestra cada nodo con su tipo y la lista de nodos vecinos.
-# Los nodos se identifican como (fila, columna).
-def imprimir_grafo(grafo):
-    print("=" * 60)
-    print("  GRAFO DEL LABERINTO  (nodo -> vecinos conectados)")
-    print("=" * 60)
-    print(f"  {'Nodo':<12} {'Tipo':<14} {'Vecinos'}")
-    print("-" * 60)
-    for f in range(9):
-        for c in range(9):
-            nodo = (f, c)
-            if nodo not in grafo:
-                continue
-            tipo    = MAPA[f][c]
-            vecinos = grafo[nodo]
-            vecinos_str = "  ".join(str(v) for v in vecinos)
-            print(f"  {str(nodo):<12} {tipo:<14} {vecinos_str}")
-    print("=" * 60)
-    print(f"  Total nodos transitables: {len(grafo)}")
-    print("=" * 60)
-    input("\n  Presiona Enter para iniciar el juego...")
+# 2. Crear aristas entre celdas adyacentes (arriba/abajo/izq/der) que no sean muro
+for f in range(filas):
+    for c in range(columnas):
+        if laberinto[f][c] == 1:
+            continue  # es un muro, no tiene conexiones
 
-# Imprimir en la terminal el mapa luego de cada movimiento
-def imprimir_mapa(pos, coins):
-    os.system("cls")
-    f_j, c_j = pos
+        actual = (f, c)
 
-    print("+" + "---+" * 9)
-    for f in range(9):
-        fila = "|"
-        for c in range(9):
-            if (f, c) == (f_j, c_j):
-                simbolo = SIMBOLOS[JUGADOR]
-            else:
-                simbolo = SIMBOLOS[MAPA[f][c]]
-            fila += f" {simbolo} |"
-        print(fila)
-        print("+" + "---+" * 9)
+        # Vecino de abajo
+        if f + 1 < filas and laberinto[f + 1][c] != 1:
+            G.add_edge(actual, (f + 1, c))
 
-    print(f"\nCoins: {coins} | Movimiento: {COSTO_BASE} | {SIMBOLOS['PREMI']} {COSTOS['PREMI']} | {SIMBOLOS['PENAL']}: {COSTOS['PENAL']} ")
+        # Vecino de la derecha
+        if c + 1 < columnas and laberinto[f][c + 1] != 1:
+            G.add_edge(actual, (f, c + 1))
 
-def jugar():
-    grafo  = construir_grafo()
-    pos    = (0, 0)
-    coins  = COINS_TOTALES
+# --- Estado inicial del jugador ---
+pos = (0, 0)
+coins = 30
 
-    imprimir_grafo(grafo)
+direcciones = {
+    "w": (-1, 0),
+    "s": (1, 0),
+    "a": (0, -1),
+    "d": (0, 1)
+}
 
-    imprimir_mapa(pos, coins)
-    print("Llega a M conservando coins  |  w/a/s/d para moverte  |  q para salir")
+nombres_direccion = {
+    "w": "arriba",
+    "s": "abajo",
+    "a": "izquierda",
+    "d": "derecha"
+}
+
+
+def dibujar_grafo(pos_jugador):
+    """Dibuja el grafo del laberinto usando matplotlib, marcando al jugador."""
+    # Usamos la propia coordenada (fila, columna) como posición en el plano.
+    # Invertimos la fila para que la matriz no se vea "boca abajo".
+    posiciones = {nodo: (nodo[1], -nodo[0]) for nodo in G.nodes()}
+
+    colores = []
+    for nodo in G.nodes():
+        valor = laberinto[nodo[0]][nodo[1]]
+        if nodo == pos_jugador:
+            colores.append("blue")       # jugador
+        elif valor == 0:
+            colores.append("lightgray")  # camino
+        elif valor == 2:
+            colores.append("orange")     # penalización
+        elif valor == 3:
+            colores.append("gold")       # premio
+        elif valor == 9:
+            colores.append("green")      # meta
+
+    plt.figure(figsize=(8, 8))
+    nx.draw(
+        G,
+        pos=posiciones,
+        with_labels=True,
+        labels={n: n for n in G.nodes()},
+        node_color=colores,
+        node_size=500,
+        font_size=6
+    )
+    plt.title(f"Posición actual: {pos_jugador}")
+    plt.show()
+
+
+def mostrar_estado():
+    print(f"\nPosición actual: {pos}  |  Monedas: {coins}")
+
+
+def procesar_celda(nueva_pos):
+    """Aplica el efecto de la celda a la que se acaba de mover el jugador."""
+    global coins
+
+    valor = laberinto[nueva_pos[0]][nueva_pos[1]]
+
+    if valor == 2:
+        coins -= 3
+        print("¡Penalización! Pierdes 3 monedas.")
+    elif valor == 0:
+        coins -= 1
+    elif valor == 3:
+        coins -= 0.25
+        print("¡Premio! Pierdes 0.25 monedas.")
+    elif valor == 9:
+        print("¡Has llegado a la meta!")
+
+    return valor
+
+
+def juego():
+    global pos, coins
+
+    print("=== LABERINTO ===")
+    print("Controles: w = arriba, s = abajo, a = izquierda, d = derecha")
+    print("Escribe 'ver' para dibujar el grafo, 'salir' para terminar la partida.\n")
+
+    # Dibujo inicial del laberinto completo
+    dibujar_grafo(pos)
 
     while True:
-        tecla = msvcrt.getch().lower()
+        mostrar_estado()
 
-        if tecla == b"q":
-            print("Saliendo...")
+        if coins <= 0:
+            print("Te has quedado sin monedas. Fin del juego.")
             break
 
-        if tecla not in DIRS:
-            continue
+        movimiento = input("Movimiento: ").strip().lower()
 
-        df, dc = DIRS[tecla]
-        destino = (pos[0]+df, pos[1]+dc)
-
-        # Verificar que el destino sea un nodo valido y esté conectado con el nodo de la posición actual del jugador [pos]
-        if destino not in grafo or destino not in grafo[pos]:
-            imprimir_mapa(pos, coins)
-            print("No puedes ir en esa direccion (pared o limite).")
-            continue
-
-        tipo_destino = MAPA[destino[0]][destino[1]]
-        costo = COSTOS[tipo_destino]
-
-        if coins - costo < 0:
-            imprimir_mapa(pos, coins)
-            print(f"Sin coins suficientes (necesitas {costo}, tienes {coins}).")
-            continue
-
-        pos    = destino
-        coins -= costo
-
-        imprimir_mapa(pos, coins)
-
-        if pos == (8, 8):
-            print(f"¡Ganaste! Llegaste a la meta con {coins} coins.")
+        if movimiento == "salir":
+            print("Has salido del juego.")
             break
 
-        if coins == 0:
-            print("¡Sin coins! Perdiste.")
-            break
+        if movimiento == "ver":
+            dibujar_grafo(pos)
+            continue
 
-        tipo = MAPA[pos[0]][pos[1]]
-        if tipo == PENAL:
-            print(f"{SIMBOLOS['PENAL']}  Celda de PENALIZACIÓN: costo triple.")
-        elif tipo == PREMI:
-            print(f"{SIMBOLOS['PREMI']}  Celda de PREMIO: costo minimo.")
+        if movimiento not in direcciones:
+            print("Movimiento no válido. Usa w, s, a, d, 'ver' o 'salir'.")
+            continue
+
+        df, dc = direcciones[movimiento]
+        destino = (pos[0] + df, pos[1] + dc)
+
+        # Comprobar que el destino exista como nodo del grafo
+        if not G.has_node(destino):
+            print("No puedes moverte fuera del laberinto.")
+            continue
+
+        # Comprobar que exista una arista (camino libre) entre la posición
+        # actual y el destino
+        if G.has_edge(pos, destino):
+            pos = destino
+            valor = procesar_celda(pos)
+            dibujar_grafo(pos)  # se actualiza el dibujo tras cada movimiento válido
+
+            if valor == 9:
+                print(f"\n¡Felicidades! Terminaste con {coins} monedas.")
+                break
         else:
-            print("w/a/s/d para moverte  |  q para salir")
+            print(f"No puedes moverte hacia {nombres_direccion[movimiento]}, hay un muro.")
+
 
 if __name__ == "__main__":
-    jugar()
+    juego()
