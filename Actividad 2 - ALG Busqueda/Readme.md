@@ -1,6 +1,6 @@
 # Laberinto con Algoritmos de Búsqueda
 
-Dos programas que modelan un laberinto como un grafo y lo resuelven automáticamente usando **BFS**, **DFS** o **UCS**, según elija el usuario. Ambos muestran el proceso de exploración y la ruta encontrada por consola y de forma visual.
+Programa que modela un laberinto como un grafo (lista de adyacencia) y lo resuelve automáticamente con **BFS**, **DFS** o **UCS**, según elija el usuario. Muestra la ruta encontrada y el proceso de exploración por consola y de forma visual.
 
 #### **Readme construido con herramienta de IA.**
 ---
@@ -9,10 +9,7 @@ Dos programas que modelan un laberinto como un grafo y lo resuelven automáticam
 
 | Archivo | Descripción |
 |---|---|
-| `laberinto_con_busqueda.py` | Versión basada en **matriz**: el grafo se construye automáticamente a partir de una matriz del laberinto. |
-| `laberinto_lista_adyacencia.py` | Versión basada en **lista de adyacencia**: el grafo y los costos se definen de forma explícita. |
-
-Ambos programas resuelven el mismo laberinto y ofrecen los mismos algoritmos. Se diferencian en cómo representan el grafo.
+| `laberinto_BFS_DFS_UCS.py` | Define el laberinto como **lista de adyacencia** con costos explícitos y lo resuelve con BFS, DFS o UCS. |
 
 ---
 
@@ -31,43 +28,51 @@ pip install networkx matplotlib
 
 ## Ejecución
 
-Versión por matriz:
-
 ```bash
-python laberinto_con_busqueda.py
+python laberinto_BFS_DFS_UCS.py
 ```
 
-Versión por lista de adyacencia:
+Flujo del programa:
 
-```bash
-python laberinto_lista_adyacencia.py
-```
-
-Al ejecutar cualquiera de los dos, el programa muestra el grafo inicial, pide elegir un algoritmo y luego muestra la ruta encontrada.
+1. **Menú de algoritmo:** elegir BFS, DFS o UCS (o salir).
+2. **Menú de costos** (solo BFS y DFS): elegir si se ejecuta **con costos** o **sin costos**.
+3. **Resultado en consola:** ruta, pasos, nodos explorados y orden de exploración.
+4. **Visualización:** se abre una ventana con el grafo y la ruta resaltada.
 
 ---
 
-## Las dos representaciones del grafo
+## Menús
 
-### `laberinto_con_busqueda.py` — a partir de una matriz
+### Menú de algoritmo
 
-El laberinto se define como una matriz donde cada valor indica el tipo de celda:
+```
+¿Con qué algoritmo deseas resolverlo?
+  (1) BFS — Búsqueda en Anchura (menos pasos)
+  (2) DFS — Búsqueda en Profundidad
+  (3) UCS — Búsqueda de Costo Uniforme (menor costo)
+  (0) Salir del programa
+```
 
-| Valor | Significado | Costo |
-|---|---|---|
-| `0` | Camino libre | 4 |
-| `1` | Pared (bloqueado) | — |
-| `2` | Premio | 1 |
-| `3` | Penalización | 12 |
-| `9` | Meta | 4 |
+### Menú de costos (solo BFS y DFS)
 
-El grafo se construye solo: cada celda que no es pared se convierte en un **nodo** `(fila, columna)` y se conecta con sus vecinos transitables. El costo de cada arista se deriva del tipo de la celda destino. El inicio es `(0, 0)` y la meta (el `9`) se detecta automáticamente.
+```
+¿Cómo deseas ejecutar el laberinto?
+  (1) Con costos
+  (2) Sin costos
+```
 
-Esta versión es la más **intuitiva de leer**, porque el laberinto se ve directamente en el código.
+| Modo | Qué se muestra |
+|---|---|
+| Con costos | Pesos sobre las aristas y **costo total** de la ruta (consola y título de la figura). |
+| Sin costos | Solo la ruta, los pasos y los nodos explorados; se ocultan los pesos y el costo total. |
 
-### `laberinto_lista_adyacencia.py` — lista de adyacencia
+BFS y DFS no usan los costos para decidir el camino, así que la ruta encontrada es la misma en ambos modos; solo cambia la información mostrada. **UCS** no muestra este menú porque siempre trabaja con costos.
 
-Aquí el grafo se define como un diccionario donde cada nodo lista sus vecinos junto con el **costo explícito** de cada arista:
+---
+
+## Representación del grafo
+
+El grafo se define como un diccionario donde cada nodo lista sus vecinos junto con el **costo explícito** de cada arista:
 
 ```python
 grafo = {
@@ -77,36 +82,33 @@ grafo = {
 }
 ```
 
-Los nodos se identifican con letras (`A`, `B`, ... `Z`, `AA`, `AB`, ...). Esta versión se adoptó para **definir los costos sin ambigüedad**: en un grafo no dirigido construido desde matriz, el costo (que es propiedad de la celda) no se traslada de forma única a la arista. Con la lista de adyacencia el costo se escribe directamente sobre cada conexión y puede editarse a mano.
+- Los nodos se identifican con letras (`A`, `B`, ... `Z`, `AA`, `AB`, ...).
+- **Inicio:** `A` — **Meta:** `AO`.
+- Para cambiar un costo, basta modificar el número en la tupla correspondiente.
 
-Para cambiar un costo, basta modificar el número en la tupla correspondiente.
+Los costos provienen del laberinto original en matriz:
+
+| Valor | Significado | Costo |
+|---|---|---|
+| `0` | Camino libre | 4 |
+| `1` | Pared (bloqueado) | — |
+| `2` | Premio | 1 |
+| `3` | Penalización | 12 |
+| `9` | Meta | 4 |
+
+Se usa lista de adyacencia para **definir los costos sin ambigüedad**: en un grafo no dirigido construido desde una matriz, el costo (propiedad de la celda) no se traslada de forma única a la arista. Aquí el costo se escribe directamente sobre cada conexión.
 
 ---
 
 ## Algoritmos de búsqueda
 
-Al ejecutar, el programa pregunta:
-
-```
-(1) BFS — Búsqueda en Anchura (menos pasos)
-(2) DFS — Búsqueda en Profundidad
-(3) UCS — Búsqueda de Costo Uniforme (menor costo)
-(0) Salir del programa
-```
-
 Los tres reciben el grafo, el inicio y la meta, y devuelven la **ruta encontrada** y el **orden de exploración**.
 
-### BFS — Búsqueda en Anchura
-
-Usa una **cola FIFO** (`pop(0)`). Explora nivel por nivel, por lo que garantiza la ruta con el **menor número de pasos**. No tiene en cuenta los costos.
-
-### DFS — Búsqueda en Profundidad
-
-Usa una **pila LIFO** (`pop(-1)`). Sigue una rama hasta el fondo antes de retroceder. **No garantiza** la ruta más corta ni la más barata.
-
-### UCS — Búsqueda de Costo Uniforme
-
-Usa una **cola de prioridad** ordenada por costo acumulado: siempre expande el nodo alcanzable con menor costo total. Garantiza la ruta de **menor costo** usando el peso de las aristas.
+| Algoritmo | Estructura | Garantiza |
+|---|---|---|
+| BFS — Búsqueda en Anchura | Cola FIFO (`pop(0)`) | Ruta con **menos pasos**. Ignora costos. |
+| DFS — Búsqueda en Profundidad | Pila LIFO (`pop(-1)`) | Nada: no asegura la ruta más corta ni la más barata. |
+| UCS — Costo Uniforme | Cola de prioridad por costo acumulado | Ruta de **menor costo** total. |
 
 Los tres comparten la misma mecánica: un contenedor de nodos pendientes, un registro de visitados y un diccionario `predecesor` para reconstruir el camino. La diferencia está en **cómo eligen el siguiente nodo**: cola, pila o prioridad por costo.
 
@@ -114,32 +116,22 @@ Los tres comparten la misma mecánica: un contenedor de nodos pendientes, un reg
 
 ## Resultados en consola
 
+Ejemplo con UCS:
+
 ```
---- Resultado UCS ---
-  Ruta encontrada (13 pasos):
-  A → I → M → N → ... → AO
-  Costo total de la ruta: 57
-  Nodos explorados: 53
-  Orden de exploración: [A, I, B, ...]
+--- Resultado UCS (con costos) ---
+  Ruta encontrada (15 pasos):
+  A → I → M → N → O → T → Z → AF → AK → AL → AM → AR → AS → AT → AN → AO
+  Costo total de la ruta: 53
+  Nodos explorados: 49
+  Orden de exploración: ['A', 'I', 'B', ...]
 ```
 
 ---
 
 ## Visualización
 
-El programa abre dos ventanas de matplotlib:
-
-**Figura 1 — Estado inicial.** El grafo antes de resolver.
-
-| Color | Nodo |
-|---|---|
-| Naranja | Inicio |
-| Verde | Meta |
-| Dorado | Premio |
-| Rojo claro | Penalización |
-| Gris claro | Camino libre |
-
-**Figura 2 — Resultado.** El grafo tras ejecutar el algoritmo elegido.
+Tras mostrar el resultado en consola se abre una ventana de matplotlib con el grafo:
 
 | Color | Nodo |
 |---|---|
@@ -149,12 +141,12 @@ El programa abre dos ventanas de matplotlib:
 | Rojo | Meta alcanzada |
 | Gris claro | No visitado |
 
-Las aristas muestran su costo como etiqueta, y las de la ruta se pintan en verde con mayor grosor.
+Las aristas de la ruta se pintan en verde con mayor grosor. En modo **con costos**, cada arista muestra su peso como etiqueta.
 
-> Cierra cada ventana para continuar con el siguiente paso del programa.
+> Cierra la ventana para terminar el programa.
 
 ---
 
 ## Nota sobre el orden de exploración
 
-El `orden_visita` registra el momento en que un nodo es **descubierto** (encolado o apilado), no cuando es explorado. Por eso la meta puede aparecer en la lista seguida de otros nodos: esos nodos ya habían sido encolados en iteraciones anteriores antes de que el algoritmo extrajera y verificara la meta. La ruta devuelta es siempre correcta.
+En BFS y DFS, `orden_visita` registra el momento en que un nodo es **descubierto** (encolado o apilado), no cuando es explorado. Por eso la meta puede aparecer en la lista seguida de otros nodos: ya habían sido encolados antes de que el algoritmo extrajera y verificara la meta. En UCS se registra al **expandir** el nodo. La ruta devuelta es siempre correcta.
