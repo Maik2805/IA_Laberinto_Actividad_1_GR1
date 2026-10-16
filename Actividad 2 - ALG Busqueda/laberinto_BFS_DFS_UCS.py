@@ -251,7 +251,7 @@ def construir_grafo_nx():
     return G
 
 
-def dibujar(G, titulo, subtitulos, aviso, colores_nodo, camino=None):
+def dibujar(G, titulo, subtitulos, aviso, colores_nodo, camino=None, con_costos=True):
     """Dibuja el grafo con colores de nodo dados y resalta la ruta si se pasa."""
     aristas_ruta = []
     if camino:
@@ -266,8 +266,6 @@ def dibujar(G, titulo, subtitulos, aviso, colores_nodo, camino=None):
         for u, v in G.edges()
     ]
 
-    pesos = nx.get_edge_attributes(G, "weight")
-
     fig = plt.figure(figsize=(9, 9))
     nx.draw(
         G,
@@ -280,7 +278,9 @@ def dibujar(G, titulo, subtitulos, aviso, colores_nodo, camino=None):
         node_size=500,
         font_size=6,
     )
-    nx.draw_networkx_edge_labels(G, POSICIONES, edge_labels=pesos, font_size=6)
+    if con_costos:
+        pesos = nx.get_edge_attributes(G, "weight")
+        nx.draw_networkx_edge_labels(G, POSICIONES, edge_labels=pesos, font_size=6)
 
     fig.text(0.5, 0.97, titulo, ha="center", va="top",
              fontsize=10, fontweight="bold")
@@ -294,26 +294,7 @@ def dibujar(G, titulo, subtitulos, aviso, colores_nodo, camino=None):
     plt.show()
 
 
-def dibujar_inicial(G):
-    colores = []
-    for nodo in G.nodes():
-        if nodo == INICIO:
-            colores.append("orange")
-        elif nodo == META:
-            colores.append("green")
-        else:
-            colores.append("lightgray")
-    dibujar(
-        G,
-        "Laberinto (lista de adyacencia) — Estado inicial",
-        ["Naranja: inicio  |  Verde: meta",
-         "Los números sobre las aristas son el costo (peso)"],
-        "Cierra esta ventana para elegir el algoritmo",
-        colores,
-    )
-
-
-def dibujar_resultado(G, algoritmo, camino, visitados):
+def dibujar_resultado(G, algoritmo, camino, visitados, con_costos=True):
     conjunto_ruta = set(camino) if camino else set()
     colores = []
     for nodo in G.nodes():
@@ -330,17 +311,27 @@ def dibujar_resultado(G, algoritmo, camino, visitados):
             colores.append("lightgray")
 
     pasos = len(camino) - 1 if camino else 0
-    titulo = (f"Algoritmo: {algoritmo}  |  Explorados: {len(visitados)}  |  "
-              f"Pasos: {pasos}  |  Costo total: {costo_total(grafo, camino)}")
+    titulo = f"Algoritmo: {algoritmo}  |  Explorados: {len(visitados)}  |  Pasos: {pasos}"
+    if con_costos:
+        titulo += f"  |  Costo total: {costo_total(grafo, camino)}"
     if not camino:
         titulo += "  |  No se encontró camino"
 
-    dibujar(G, titulo, [], "Cierra esta ventana para continuar", colores, camino)
+    dibujar(G, titulo, [], "Cierra esta ventana para terminar", colores, camino, con_costos)
 
 
 # ---------------------------------------------------------------------------
 # PROGRAMA PRINCIPAL
 # ---------------------------------------------------------------------------
+
+def pedir_opcion(mensaje, validas):
+    """Pide una opción por consola hasta que sea una de las válidas."""
+    while True:
+        opcion = input(mensaje).strip()
+        if opcion in validas:
+            return opcion
+        print(f"  Opción no válida, ingresa {' o '.join(validas)}.")
+
 
 def main():
     print("=" * 50)
@@ -351,24 +342,23 @@ def main():
     print(f"  Nodos  : {len(grafo)}")
     print("=" * 50)
 
-    G = construir_grafo_nx()
-
-    print("\nMostrando el laberinto inicial...")
-    dibujar_inicial(G)
-
+    # 1) MENÚ: elegir algoritmo
     print("\n¿Con qué algoritmo deseas resolverlo?")
     print("  (1) BFS — Búsqueda en Anchura (menos pasos)")
     print("  (2) DFS — Búsqueda en Profundidad")
     print("  (3) UCS — Búsqueda de Costo Uniforme (menor costo)")
     print("  (0) Salir del programa")
+    opcion = pedir_opcion("\nIngresa tu opción: ", ("1", "2", "3", "0"))
+    if opcion == "0":
+        return
 
-    while True:
-        opcion = input("\nIngresa 1, 2 o 3: ").strip()
-        if opcion in ("1", "2", "3"):
-            break
-        if opcion == "0":
-            return
-        print("  Opción no válida, ingresa 1, 2 o 3.")
+    # 2) MENÚ: con o sin costos (solo BFS y DFS; UCS siempre usa costos)
+    con_costos = True
+    if opcion in ("1", "2"):
+        print("\n¿Cómo deseas ejecutar el laberinto?")
+        print("  (1) Con costos")
+        print("  (2) Sin costos")
+        con_costos = pedir_opcion("\nIngresa tu opción: ", ("1", "2")) == "1"
 
     if opcion == "1":
         nombre, (camino, visitados) = "BFS", bfs(grafo, INICIO, META)
@@ -376,20 +366,24 @@ def main():
         nombre, (camino, visitados) = "DFS", dfs(grafo, INICIO, META)
     else:
         nombre, (camino, visitados) = "UCS", ucs(grafo, INICIO, META)
+    nombre += " (con costos)" if con_costos else " (sin costos)"
 
     print(f"\n--- Resultado {nombre} ---")
     if camino:
         print(f"  Ruta encontrada ({len(camino) - 1} pasos):")
         print(f"  {' → '.join(str(n) for n in camino)}")
-        print(f"  Costo total de la ruta: {costo_total(grafo, camino)}")
+        if con_costos:
+            print(f"  Costo total de la ruta: {costo_total(grafo, camino)}")
     else:
         print("  No se encontró un camino hacia la meta.")
     print(f"  Nodos explorados: {len(visitados)}")
     print(f"  Orden de exploración: {visitados}")
 
+    # 3) PARTE VISUAL
     print("\nMostrando resultado visual...")
     print("  Azul = explorados  |  Verde = ruta  |  Naranja = inicio  |  Rojo = meta")
-    dibujar_resultado(G, nombre, camino, set(visitados))
+    G = construir_grafo_nx()
+    dibujar_resultado(G, nombre, camino, set(visitados), con_costos)
 
 
 if __name__ == "__main__":
